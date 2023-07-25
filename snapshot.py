@@ -20,13 +20,13 @@ class VeToken:
         self.lock_end = lock_end
 
 
-def batch_multicall(calls: List[Call], batch_size: int):
+def batch_multicall(w3: Web3, calls: List[Call], batch_size: int):
     step = int(len(calls) / batch_size)
 
     output = {}
     for i in range(0, len(calls), step):
         print(f"chunk {i}")
-        res = Multicall(calls[i : i + step])()
+        res = Multicall(calls[i : i + step], _w3=w3)()
         output = {**output, **res}
 
     return output
@@ -53,8 +53,8 @@ def get_eligible_tokens(w3: Web3, venft: contract.Contract) -> List[VeToken]:
         for id in token_ids
     ]
 
-    locked = batch_multicall(locked_calls, 30)
-    ownerof = batch_multicall(ownerof_calls, 30)
+    locked = batch_multicall(w3, locked_calls, 10)
+    ownerof = batch_multicall(w3, ownerof_calls, 10)
 
     ve_tokens: List[VeToken] = []
 
@@ -72,9 +72,6 @@ def get_eligible_tokens(w3: Web3, venft: contract.Contract) -> List[VeToken]:
         if locked_amount < MIN_LOCKED_AMOUNT:
             continue
 
-        if owner.lower() == "0xcba1a275e2d858ecffaf7a87f606f74b719a8a93":
-            print(token_id, locked_amount, lock_end)
-
         ve_tokens.append(VeToken(token_id, owner.lower(), locked_amount, lock_end))
 
     return ve_tokens
@@ -83,8 +80,7 @@ def get_eligible_tokens(w3: Web3, venft: contract.Contract) -> List[VeToken]:
 rpc_url = os.environ.get("RPC_URL")
 
 if rpc_url == None:
-    print("missing RPC_URL environment variable")
-    exit(1)
+    rpc_url = "https://arb1.arbitrum.io/rpc"
 
 w3 = Web3(Web3.HTTPProvider(rpc_url))
 
